@@ -2,7 +2,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from encryption import Encryption
 from authentication import Authentication
+#import pyotp
+#import qrcode
 #from PIL import Image, ImageTk  # Importiere Pillow für die Bildbearbeitung
+
 
 class FileVault:
     def __init__(self, root):
