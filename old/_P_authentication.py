@@ -8,7 +8,7 @@ from PIL import Image, ImageTk  # Importiere Pillow für die Bildbearbeitung
 
 class Authentication:
     def __init__(self, root, master):
-        self.conn = sqlite3.connect('users.db')  # SQLite-Datenbank für Benutzerdaten
+        self.conn = sqlite3.connect('../users.db')  # SQLite-Datenbank für Benutzerdaten
         self.cursor = self.conn.cursor()
         self.current_username = None
         self.root = root

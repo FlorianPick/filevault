@@ -5,7 +5,7 @@ from tkinter import Toplevel, Label, Entry, Button, messagebox
 class Authentication:
 	def __init__(self):
 		# Verbindung zur SQLite3-Datenbank
-		self.conn = sqlite3.connect('../file-vault/users.db')
+		self.conn = sqlite3.connect('../../file-vault/users.db')
 		self.create_table()
 
 	def create_table(self):

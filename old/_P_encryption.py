@@ -14,7 +14,7 @@ class Encryption:
 
     def init_db(self):
         """Initialisiert die SQLite-Datenbank und erstellt die Tabelle für Passwörter, falls sie nicht existiert."""
-        self.conn = sqlite3.connect('users.db')  # Verbindet oder erstellt die Datenbank
+        self.conn = sqlite3.connect('../users.db')  # Verbindet oder erstellt die Datenbank
         cursor = self.conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS passwords 
                           (id INTEGER PRIMARY KEY, algorithm TEXT, salt BLOB, hash BLOB)''')  # Erstellt die Tabelle für Passwort-Hashes
