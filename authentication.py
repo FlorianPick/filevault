@@ -3,7 +3,9 @@ import pyotp
 from tkinter import Toplevel, Label, Entry, Button, messagebox
 import tkinter as tk
 import qrcode  # Importiere qrcode
+import ttkbootstrap as tb
 from PIL import Image, ImageTk  # Importiere Pillow für die Bildbearbeitung
+from ttkbootstrap import SUCCESS
 
 
 class Authentication:
@@ -33,32 +35,28 @@ class Authentication:
 
     def open_login_dialog(self, root, on_success):
 
-
-
-
         """Öffnet das Login-Fenster."""
         self.login_window = Toplevel(root)
         self.login_window.title("Login")
-        self.login_window.geometry('800x500')
+        self.login_window.geometry('300x250')
 
 
-        Label(self.login_window, text="Benutzername:").pack(pady=5)
-        self.username_entry = Entry(self.login_window)
+        tb.Label(self.login_window, text="Benutzername:").pack(pady=5)
+        self.username_entry = tb.Entry(self.login_window)
         self.username_entry.pack(pady=5)
         self.username_entry.focus_set()
 
         Label(self.login_window, text="Passwort:").pack(pady=5)
-        self.password_entry = Entry(self.login_window, show="*")
+        self.password_entry = tb.Entry(self.login_window, show="*")
         self.password_entry.pack(pady=5)
 
-        self.show_password_var = tk.BooleanVar()  # Variable für die Checkbox
-        self.show_password_checkbox = tk.Checkbutton(self.login_window, text="Passwort im Klartext anzeigen",
+        self.show_password_var = tb.BooleanVar()  # Variable für die Checkbox
+        self.show_password_checkbox = tb.Checkbutton(self.login_window, text="Passwort im Klartext anzeigen",
                                                      variable=self.show_password_var,
                                                      command=self.toggle_password_visibility)
         self.show_password_checkbox.pack(pady=10)
 
-        Button(self.login_window, text="Anmelden",
-               command=lambda: self.login(on_success)).pack(pady=10)
+        tb.Button(self.login_window, text="Anmelden", bootstyle = SUCCESS , command=lambda: self.login(on_success)).pack(pady=10)
 
     def toggle_password_visibility(self):
         """Wechselt zwischen Passwort anzeigen und verstecken."""
@@ -104,12 +102,12 @@ class Authentication:
 
     def prompt_for_2fa_code(self, on_code_entered):
         """Öffnet ein Fenster zur Eingabe des 2FA-Codes."""
-        self.code_window = tk.Toplevel(self.root)
+        self.code_window = tb.Toplevel(self.root)
         self.code_window.title("2FA Code eingeben")
 
-        tk.Label(self.code_window, text="Bitte geben Sie Ihren 2FA-Code ein:").pack(pady=5)
+        tb.Label(self.code_window, text="Bitte geben Sie Ihren 2FA-Code ein:").pack(pady=5)
 
-        self.code_entry = tk.Entry(self.code_window)
+        self.code_entry = tb.Entry(self.code_window)
         self.code_entry.pack(pady=5)
         self.code_entry.focus_set()
 
@@ -117,7 +115,7 @@ class Authentication:
         self.code_entry.bind('<Return>', lambda event: self.verify_code(on_code_entered))
 
         # Bestätigungsbutton
-        tk.Button(self.code_window, text="Bestätigen", command=lambda: self.verify_code(on_code_entered)).pack(pady=10)
+        tb.Button(self.code_window, text="Bestätigen", bootstyle = SUCCESS, command=lambda: self.verify_code(on_code_entered)).pack(pady=10)
 
         # Bindet die Return-Taste hier richtig
         self.code_window.bind('<Return>', lambda event: self.verify_code(on_code_entered))  # Korrektur
@@ -168,24 +166,25 @@ class Authentication:
         """Öffnet das Registrierungsfenster."""
         self.register_window = Toplevel(master)
         self.register_window.title("Registrierung")
+        self.register_window.geometry('300x250')
 
         Label(self.register_window, text="Benutzername:").pack(pady=5)
-        self.register_username_entry = Entry(self.register_window)
+        self.register_username_entry = tb.Entry(self.register_window)
         self.register_username_entry.pack(pady=5)
         self.register_username_entry.focus_set()
 
         Label(self.register_window, text="Passwort:").pack(pady=5)
-        self.register_password_entry = Entry(self.register_window, show="*")
+        self.register_password_entry = tb.Entry(self.register_window, show="*")
         self.register_password_entry.pack(pady=5)
 
-        self.show_register_password_var = tk.BooleanVar()  # Variable für die Checkbox
-        self.show_register_password_checkbox = tk.Checkbutton(self.register_window,
+        self.show_register_password_var = tb.BooleanVar()  # Variable für die Checkbox
+        self.show_register_password_checkbox = tb.Checkbutton(self.register_window,
                                                               text="Passwort im Klartext anzeigen",
                                                               variable=self.show_register_password_var,
                                                               command=self.toggle_register_password_visibility)
         self.show_register_password_checkbox.pack(pady=10)
 
-        Button(self.register_window, text="Registrieren",
+        tb.Button(self.register_window, text="Registrieren", bootstyle = SUCCESS,
                command=lambda: self.register(callback)).pack(pady=10)
 
     def toggle_register_password_visibility(self):
@@ -237,12 +236,12 @@ class Authentication:
         self.qr_window.title("Authenticator QR Code")
 
         # Label über dem QR-Code hinzufügen
-        tk.Label(self.qr_window,
+        tb.Label(self.qr_window,
                  text="Bitte scannen Sie diesen QR-Code mit einer Authenticator App um Ihren Account zu verknüpfen").pack(
             pady=10)
 
         # QR-Code im Fenster anzeigen
-        qr_label = tk.Label(self.qr_window, image=img)
+        qr_label = tb.Label(self.qr_window, image=img)
         qr_label.image = img  # Referenz halten
         qr_label.pack(pady=10)
 

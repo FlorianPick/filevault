@@ -22,26 +22,32 @@ class Encryption:
 
     def save_password_hash(self, password, algorithm):
         """Speichert den Passwort-Hash und den Salt-Wert in der Datenbank für einen bestimmten Algorithmus."""
-        cursor = self.conn.cursor()
-        salt = os.urandom(16)  # Generiert einen zufälligen Salt von 16 Byte
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),  # Verwendet SHA-256 als Hash-Algorithmus
-            length=32,  # Länge des abgeleiteten Schlüssels in Bytes
-            salt=salt,  # Der zuvor generierte Salt
-            iterations=100000,  # Anzahl der Iterationen für die Schlüsselableitung
-        )
-        key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+        try:
+            cursor = self.conn.cursor()
+            salt = os.urandom(16)  # Generiert einen zufälligen Salt von 16 Byte
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),  # Verwendet SHA-256 als Hash-Algorithmus
+                length=32,  # Länge des abgeleiteten Schlüssels in Bytes
+                salt=salt,  # Der zuvor generierte Salt
+                iterations=100000,  # Anzahl der Iterationen für die Schlüsselableitung
+            )
+            key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
 
-        # Fügt den Algorithmus, den Salt und den Hash in die Datenbank ein
-        cursor.execute("INSERT INTO passwords (algorithm, salt, hash) VALUES (?, ?, ?)", (algorithm, salt, key))
-        self.conn.commit()  # Speichert die Änderungen in der Datenbank
+            # Fügt den Algorithmus, den Salt und den Hash in die Datenbank ein
+            cursor.execute("INSERT INTO passwords (algorithm, salt, hash) VALUES (?, ?, ?)", (algorithm, salt, key))
+            self.conn.commit()  # Speichert die Änderungen in der Datenbank
+        except sqlite3.Error as e:
+            return f"Fehler beim Speichern des Passwort-Hashes: {str(e)}"
 
     def load_password_hash(self, algorithm):
         """Lädt den Salt-Wert und den Hash für einen bestimmten Algorithmus aus der Datenbank."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT salt, hash FROM passwords WHERE algorithm=?", (algorithm,))
-        result = cursor.fetchone()  # Holt den ersten Treffer aus der Datenbank
-        return (result[0], result[1]) if result else (None, None)  # Gibt Salt und Hash zurück oder None
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT salt, hash FROM passwords WHERE algorithm=?", (algorithm,))
+            result = cursor.fetchone()  # Holt den ersten Treffer aus der Datenbank
+            return (result[0], result[1]) if result else (None, None)  # Gibt Salt und Hash zurück oder None
+        except sqlite3.Error as e:
+            return (None, None)  # Fehler beim Laden der Daten aus der Datenbank
 
     def encrypt_file(self, file_path, password, algorithm):
         """Verschlüsselt eine Datei basierend auf dem angegebenen Algorithmus."""
@@ -73,246 +79,289 @@ class Encryption:
     # AES-Verschlüsselung
     def encrypt_with_aes(self, file_path, password):
         """Verschlüsselt eine Datei mit dem AES-Algorithmus."""
-        salt, key = self.load_password_hash('AES')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            self.save_password_hash(password, 'AES')  # Speichert den Hash und Salt in der Datenbank
-            salt, key = self.load_password_hash('AES')
+        try:
+            salt, key = self.load_password_hash('AES')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                self.save_password_hash(password, 'AES')  # Speichert den Hash und Salt in der Datenbank
+                salt, key = self.load_password_hash('AES')
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
-        iv = os.urandom(16)  # Generiert einen Initialisierungsvektor (IV) von 16 Byte
-        cipher = Cipher(algorithms.AES(derived_key), modes.CFB(iv), backend=default_backend())
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            iv = os.urandom(16)  # Generiert einen Initialisierungsvektor (IV) von 16 Byte
+            cipher = Cipher(algorithms.AES(derived_key), modes.CFB(iv), backend=default_backend())
 
-        with open(file_path, 'rb') as f:
-            file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
+            with open(file_path, 'rb') as f:
+                file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
 
-        encryptor = cipher.encryptor()  # Erstellt einen Verschlüsselungs-Objekt
-        encrypted_data = encryptor.update(file_data) + encryptor.finalize()  # Verschlüsselt die Datei
+            encryptor = cipher.encryptor()  # Erstellt einen Verschlüsselungs-Objekt
+            encrypted_data = encryptor.update(file_data) + encryptor.finalize()  # Verschlüsselt die Datei
 
-        encrypted_file_path = file_path + '.aes'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
-        with open(encrypted_file_path, 'wb') as f:
-            f.write(iv + encrypted_data)  # Speichert IV und verschlüsselte Daten in der neuen Datei
+            encrypted_file_path = file_path + '.aes'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
+            with open(encrypted_file_path, 'wb') as f:
+                f.write(iv + encrypted_data)  # Speichert IV und verschlüsselte Daten in der neuen Datei
 
-        os.remove(file_path)  # Löscht die ursprüngliche Datei
-        return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die ursprüngliche Datei
+            return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der AES-Verschlüsselung: {str(e)}"
 
     def decrypt_with_aes(self, file_path, password):
         """Entschlüsselt eine mit AES verschlüsselte Datei."""
-        salt, key = self.load_password_hash('AES')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            return False  # Entschlüsselung kann nicht durchgeführt werden
+        try:
+            salt, key = self.load_password_hash('AES')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                return "Kein Schlüssel zum Entschlüsseln gefunden."
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
 
-        with open(file_path, 'rb') as f:
-            iv = f.read(16)  # Liest den IV von der verschlüsselten Datei
-            encrypted_data = f.read()  # Liest die verschlüsselten Daten
+            with open(file_path, 'rb') as f:
+                iv = f.read(16)  # Liest den IV von der verschlüsselten Datei
+                encrypted_data = f.read()  # Liest die verschlüsselten Daten
 
-        cipher = Cipher(algorithms.AES(derived_key), modes.CFB(iv), backend=default_backend())
-        decryptor = cipher.decryptor()  # Erstellt einen Entschlüsselungs-Objekt
-        decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()  # Entschlüsselt die Daten
+            cipher = Cipher(algorithms.AES(derived_key), modes.CFB(iv), backend=default_backend())
+            decryptor = cipher.decryptor()  # Erstellt einen Entschlüsselungs-Objekt
+            decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()  # Entschlüsselt die Daten
 
-        decrypted_file_path = file_path.replace('.aes', '')  # Entfernt die Dateierweiterung
-        with open(decrypted_file_path, 'wb') as f:
-            f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
+            decrypted_file_path = file_path.replace('.aes', '')  # Entfernt die Dateierweiterung
+            with open(decrypted_file_path, 'wb') as f:
+                f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
 
-        os.remove(file_path)  # Löscht die verschlüsselte Datei
-        return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die verschlüsselte Datei
+            return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der AES-Entschlüsselung: {str(e)}"
 
     # ChaCha20-Verschlüsselung
     def encrypt_with_chacha20(self, file_path, password):
         """Verschlüsselt eine Datei mit dem ChaCha20-Algorithmus."""
-        salt, key = self.load_password_hash('ChaCha20')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            self.save_password_hash(password, 'ChaCha20')  # Speichert den Hash und Salt in der Datenbank
-            salt, key = self.load_password_hash('ChaCha20')
+        try:
+            salt, key = self.load_password_hash('ChaCha20')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                self.save_password_hash(password, 'ChaCha20')  # Speichert den Hash und Salt in der Datenbank
+                salt, key = self.load_password_hash('ChaCha20')
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
-        nonce = os.urandom(16)  # Generiert einen zufälligen Nonce von 16 Byte
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            nonce = os.urandom(16)  # Generiert einen zufälligen Nonce (16 Byte)
+            cipher = Cipher(algorithms.ChaCha20(derived_key, nonce), mode=None, backend=default_backend())
 
-        cipher = Cipher(algorithms.ChaCha20(derived_key, nonce), mode=None, backend=default_backend())
+            with open(file_path, 'rb') as f:
+                file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
 
-        with open(file_path, 'rb') as f:
-            file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
+            encryptor = cipher.encryptor()  # Erstellt einen Verschlüsselungs-Objekt
+            encrypted_data = encryptor.update(file_data) + encryptor.finalize()  # Verschlüsselt die Datei
 
-        encryptor = cipher.encryptor()  # Erstellt einen Verschlüsselungs-Objekt
-        encrypted_data = encryptor.update(file_data)  # Verschlüsselt die Datei
+            encrypted_file_path = file_path + '.cha'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
+            with open(encrypted_file_path, 'wb') as f:
+                f.write(nonce + encrypted_data)  # Speichert Nonce und verschlüsselte Daten in der neuen Datei
 
-        encrypted_file_path = file_path + '.chacha20'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
-        with open(encrypted_file_path, 'wb') as f:
-            f.write(nonce + encrypted_data)  # Speichert Nonce und verschlüsselte Daten in der neuen Datei
-
-        os.remove(file_path)  # Löscht die ursprüngliche Datei
-        return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die ursprüngliche Datei
+            return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der ChaCha20-Verschlüsselung: {str(e)}"
 
     def decrypt_with_chacha20(self, file_path, password):
         """Entschlüsselt eine mit ChaCha20 verschlüsselte Datei."""
-        salt, key = self.load_password_hash('ChaCha20')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            return False  # Entschlüsselung kann nicht durchgeführt werden
+        try:
+            salt, key = self.load_password_hash('ChaCha20')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                return "Kein Schlüssel zum Entschlüsseln gefunden."
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
 
-        with open(file_path, 'rb') as f:
-            nonce = f.read(16)  # Liest den Nonce von der verschlüsselten Datei
-            encrypted_data = f.read()  # Liest die verschlüsselten Daten
+            with open(file_path, 'rb') as f:
+                nonce = f.read(16)  # Liest den Nonce von der verschlüsselten Datei
+                encrypted_data = f.read()  # Liest die verschlüsselten Daten
 
-        cipher = Cipher(algorithms.ChaCha20(derived_key, nonce), mode=None, backend=default_backend())
-        decryptor = cipher.decryptor()  # Erstellt einen Entschlüsselungs-Objekt
-        decrypted_data = decryptor.update(encrypted_data)  # Entschlüsselt die Daten
+            cipher = Cipher(algorithms.ChaCha20(derived_key, nonce), mode=None, backend=default_backend())
+            decryptor = cipher.decryptor()  # Erstellt einen Entschlüsselungs-Objekt
+            decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()  # Entschlüsselt die Daten
 
-        decrypted_file_path = file_path.replace('.chacha20', '')  # Entfernt die Dateierweiterung
-        with open(decrypted_file_path, 'wb') as f:
-            f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
+            decrypted_file_path = file_path.replace('.cha', '')  # Entfernt die Dateierweiterung
+            with open(decrypted_file_path, 'wb') as f:
+                f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
 
-        os.remove(file_path)  # Löscht die verschlüsselte Datei
-        return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die verschlüsselte Datei
+            return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der ChaCha20-Entschlüsselung: {str(e)}"
 
     # Fernet-Verschlüsselung
     def encrypt_with_fernet(self, file_path, password):
         """Verschlüsselt eine Datei mit dem Fernet-Algorithmus."""
-        salt, key = self.load_password_hash('Fernet')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            self.save_password_hash(password, 'Fernet')  # Speichert den Hash und Salt in der Datenbank
-            salt, key = self.load_password_hash('Fernet')
+        try:
+            salt, key = self.load_password_hash('Fernet')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                self.save_password_hash(password, 'Fernet')  # Speichert den Hash und Salt in der Datenbank
+                salt, key = self.load_password_hash('Fernet')
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
-        fernet_key = base64.urlsafe_b64encode(derived_key)  # Erzeugt den Fernet-Schlüssel
-        fernet = Fernet(fernet_key)  # Erstellt ein Fernet-Objekt
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            fernet_key = base64.urlsafe_b64encode(derived_key[:32])  # Fernet erwartet einen 32-Byte Schlüssel
+            cipher = Fernet(fernet_key)
 
-        with open(file_path, 'rb') as f:
-            file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
+            with open(file_path, 'rb') as f:
+                file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
 
-        encrypted_data = fernet.encrypt(file_data)  # Verschlüsselt die Datei
+            encrypted_data = cipher.encrypt(file_data)  # Verschlüsselt die Datei
 
-        encrypted_file_path = file_path + '.fernet'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
-        with open(encrypted_file_path, 'wb') as f:
-            f.write(encrypted_data)  # Speichert die verschlüsselten Daten in der neuen Datei
+            encrypted_file_path = file_path + '.fernet'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
+            with open(encrypted_file_path, 'wb') as f:
+                f.write(encrypted_data)  # Speichert die verschlüsselten Daten in der neuen Datei
 
-        os.remove(file_path)  # Löscht die ursprüngliche Datei
-        return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die ursprüngliche Datei
+            return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der Fernet-Verschlüsselung: {str(e)}"
 
     def decrypt_with_fernet(self, file_path, password):
         """Entschlüsselt eine mit Fernet verschlüsselte Datei."""
-        salt, key = self.load_password_hash('Fernet')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            return False  # Entschlüsselung kann nicht durchgeführt werden
+        try:
+            salt, key = self.load_password_hash('Fernet')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                return "Kein Schlüssel zum Entschlüsseln gefunden."
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
-        fernet_key = base64.urlsafe_b64encode(derived_key)  # Erzeugt den Fernet-Schlüssel
-        fernet = Fernet(fernet_key)  # Erstellt ein Fernet-Objekt
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            fernet_key = base64.urlsafe_b64encode(derived_key[:32])  # Fernet erwartet einen 32-Byte Schlüssel
+            cipher = Fernet(fernet_key)
 
-        with open(file_path, 'rb') as f:
-            encrypted_data = f.read()  # Liest die verschlüsselten Daten
+            with open(file_path, 'rb') as f:
+                encrypted_data = f.read()  # Liest die verschlüsselten Daten
 
-        decrypted_data = fernet.decrypt(encrypted_data)  # Entschlüsselt die Daten
+            decrypted_data = cipher.decrypt(encrypted_data)  # Entschlüsselt die Daten
 
-        decrypted_file_path = file_path.replace('.fernet', '')  # Entfernt die Dateierweiterung
-        with open(decrypted_file_path, 'wb') as f:
-            f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
+            decrypted_file_path = file_path.replace('.fernet', '')  # Entfernt die Dateierweiterung
+            with open(decrypted_file_path, 'wb') as f:
+                f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
 
-        os.remove(file_path)  # Löscht die verschlüsselte Datei
-        return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die verschlüsselte Datei
+            return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der Fernet-Entschlüsselung: {str(e)}"
 
-    # 3DES-Verschlüsselung
     def encrypt_with_3des(self, file_path, password):
         """Verschlüsselt eine Datei mit dem 3DES-Algorithmus."""
-        salt, key = self.load_password_hash('3DES')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            self.save_password_hash(password, '3DES')  # Speichert den Hash und Salt in der Datenbank
-            salt, key = self.load_password_hash('3DES')
+        try:
+            salt, key = self.load_password_hash('3DES')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                self.save_password_hash(password, '3DES')  # Speichert den Hash und Salt in der Datenbank
+                salt, key = self.load_password_hash('3DES')
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=24,  # 3DES benötigt 24 Byte Schlüssel
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
-        iv = os.urandom(8)  # 3DES benötigt 8 Byte IV
-        cipher = Cipher(algorithms.TripleDES(derived_key), modes.CFB(iv), backend=default_backend())
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=24,  # 3DES benötigt einen 24-Byte-Schlüssel
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            iv = os.urandom(8)  # 3DES verwendet einen 8-Byte IV
+            cipher = Cipher(algorithms.TripleDES(derived_key), modes.CFB(iv), backend=default_backend())
 
-        with open(file_path, 'rb') as f:
-            file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
+            with open(file_path, 'rb') as f:
+                file_data = f.read()  # Liest die Datei, die verschlüsselt werden soll
 
-        encryptor = cipher.encryptor()  # Erstellt einen Verschlüsselungs-Objekt
-        encrypted_data = encryptor.update(file_data) + encryptor.finalize()  # Verschlüsselt die Datei
+            encryptor = cipher.encryptor()  # Erstellt ein Verschlüsselungsobjekt
+            encrypted_data = encryptor.update(file_data) + encryptor.finalize()  # Verschlüsselt die Datei
 
-        encrypted_file_path = file_path + '.3des'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
-        with open(encrypted_file_path, 'wb') as f:
-            f.write(iv + encrypted_data)  # Speichert IV zusammen mit den verschlüsselten Daten
+            encrypted_file_path = file_path + '.3des'  # Fügt die Dateierweiterung für verschlüsselte Dateien hinzu
+            with open(encrypted_file_path, 'wb') as f:
+                f.write(iv + encrypted_data)  # Speichert IV und verschlüsselte Daten in der neuen Datei
 
-        os.remove(file_path)  # Löscht die ursprüngliche Datei
-        return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die ursprüngliche Datei
+            return encrypted_file_path  # Gibt den Pfad zur verschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der 3DES-Verschlüsselung: {str(e)}"
 
     def decrypt_with_3des(self, file_path, password):
         """Entschlüsselt eine mit 3DES verschlüsselte Datei."""
-        salt, key = self.load_password_hash('3DES')  # Lädt den Salt und den Hash aus der Datenbank
-        if not key:  # Wenn kein Hash vorhanden ist
-            return False  # Entschlüsselung kann nicht durchgeführt werden
+        try:
+            salt, key = self.load_password_hash('3DES')  # Lädt den Salt und den Hash aus der Datenbank
+            if not key:  # Wenn kein Hash vorhanden ist
+                return "Kein Schlüssel zum Entschlüsseln gefunden."
 
-        # Erstellt einen Schlüssel aus dem Passwort und Salt
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=24,  # 3DES benötigt 24 Byte Schlüssel
-            salt=salt,
-            iterations=100000,
-        )
-        derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
+            # Erstellt einen Schlüssel aus dem Passwort und Salt
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=24,  # 3DES benötigt einen 24-Byte-Schlüssel
+                salt=salt,
+                iterations=100000,
+            )
+            derived_key = kdf.derive(password.encode())  # Leitet den Schlüssel aus dem Passwort ab
 
-        with open(file_path, 'rb') as f:
-            iv = f.read(8)  # 3DES benötigt 8 Byte IV
-            encrypted_data = f.read()  # Liest die verschlüsselten Daten
+            with open(file_path, 'rb') as f:
+                iv = f.read(8)  # Liest den IV von der verschlüsselten Datei
+                encrypted_data = f.read()  # Liest die verschlüsselten Daten
 
-        cipher = Cipher(algorithms.TripleDES(derived_key), modes.CFB(iv), backend=default_backend())
-        decryptor = cipher.decryptor()  # Erstellt einen Entschlüsselungs-Objekt
-        decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()  # Entschlüsselt die Daten
+            cipher = Cipher(algorithms.TripleDES(derived_key), modes.CFB(iv), backend=default_backend())
+            decryptor = cipher.decryptor()  # Erstellt ein Entschlüsselungsobjekt
+            decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()  # Entschlüsselt die Daten
 
-        decrypted_file_path = file_path.replace('.3des', '')  # Entfernt die Dateierweiterung
-        with open(decrypted_file_path, 'wb') as f:
-            f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
+            decrypted_file_path = file_path.replace('.3des', '')  # Entfernt die Dateierweiterung
+            with open(decrypted_file_path, 'wb') as f:
+                f.write(decrypted_data)  # Speichert die entschlüsselten Daten in einer neuen Datei
 
-        os.remove(file_path)  # Löscht die verschlüsselte Datei
-        return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+            os.remove(file_path)  # Löscht die verschlüsselte Datei
+            return decrypted_file_path  # Gibt den Pfad zur entschlüsselten Datei zurück
+        except PermissionError:
+            return "Die Orignaldatei ist schreibgeschützt und kann nicht gelöscht werden."
+        except Exception as e:
+            return f"Fehler bei der 3DES-Entschlüsselung: {str(e)}"
+
+    def close(self):
+        """Schließt die Datenbankverbindung."""
+        self.conn.close()
+

@@ -1,10 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from encryption import Encryption
+from old.encryption_old import Encryption
 from authentication import Authentication
-from PIL import Image, ImageTk
-
-
 
 
 class FileVault:

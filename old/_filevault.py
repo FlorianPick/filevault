@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from authentication import Authentication
-from encryption import Encryption
+from old.encryption_old import Encryption
 
 class FileVault:
     def __init__(self, root):

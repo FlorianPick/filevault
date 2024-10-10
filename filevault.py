@@ -1,6 +1,8 @@
 import tkinter as tk
+import ttkbootstrap as tb
 from tkinter import filedialog, messagebox
-from encryption import Encryption
+from ttkbootstrap import SUCCESS, DANGER
+from old.encryption_old import Encryption
 from authentication import Authentication
 from PIL import Image, ImageTk
 
@@ -14,7 +16,7 @@ class FileVault:
         self.authentication = Authentication(self.root, self)
         self.code_window = None  # Attribut für das 2FA-Fenster
         self.qr_window = None  # Attribut für das QR-Code-Fenster
-
+        self.style = tb.Style('cyborg')#
         # Lade das Hintergrundbild und speichere das Originalbild als PIL.Image.Image
         br_image_path = "assets/back_locked.jpg"
         self.original_image = Image.open(br_image_path)
@@ -29,22 +31,21 @@ class FileVault:
         self.root.bind('<Configure>', self.on_resize)
 
         # Hauptmenü-Buttons
-        self.login_button = tk.Button(root, text='Login', command=self.open_login_dialog)
+        self.login_button = tb.Button(root, bootstyle = SUCCESS,  text='Login', command=self.open_login_dialog)
         self.login_button.pack(pady=10, anchor ='center')
 
 
-        self.register_button = tk.Button(root, text='Registrieren', command=self.open_register_dialog)
+        self.register_button = tb.Button(root, text='Registrieren', bootstyle = DANGER , command=self.open_register_dialog)
         self.register_button.pack(pady=10, anchor='center')
 
+
         # Die Buttons für Verschlüsseln, Entschlüsseln und Logout, standardmäßig versteckt
-        self.encrypt_button = tk.Button(root, text='Verschlüsseln', state='disabled',
-                                        command=lambda: self.process_file('encrypt'))
-        self.decrypt_button = tk.Button(root, text='Entschlüsseln', state='disabled',
-                                        command=lambda: self.process_file('decrypt'))
-        self.logout_button = tk.Button(root, text='Logout', state='disabled', command=self.logout)
+        self.encrypt_button = tb.Button(root, text='Verschlüsseln', bootstyle = SUCCESS, state='disabled', command=lambda: self.process_file('encrypt'))
+        self.decrypt_button = tb.Button(root, text='Entschlüsseln', bootstyle = SUCCESS, state='disabled', command=lambda: self.process_file('decrypt'))
+        self.logout_button = tb.Button(root, text='Logout', bootstyle = SUCCESS, state='disabled', command=self.logout)
 
         # Statuslabel für den Benutzernamen
-        self.status_label = tk.Label(root, text='')
+        self.status_label = tb.Label(root, text='')
         self.status_label.pack(pady=10)
 
     def on_resize(self, event):
@@ -163,24 +164,25 @@ class FileVault:
         algorithm_options = ['AES', 'ChaCha20', 'Fernet', '3DES']
 
         # Dropdown-Menü zur Auswahl des Algorithmus
-        algorithm_menu = tk.OptionMenu(self.algorithm_window, self.algorithm_var, *algorithm_options)
+        algorithm_menu = tb.OptionMenu(self.algorithm_window, self.algorithm_var, *algorithm_options)
         algorithm_menu.pack(pady=5)
 
         # Passwort-Eingabefeld
         tk.Label(self.algorithm_window, text='Passwort:').pack(pady=5)
-        self.password_entry = tk.Entry(self.algorithm_window, show='*')
+        self.password_entry = tb.Entry(self.algorithm_window, show='*')
         self.password_entry.pack(pady=5)
 
         # Checkbox für das Anzeigen des Passworts
-        self.show_password_var = tk.BooleanVar()
-        self.show_password_checkbox = tk.Checkbutton(self.algorithm_window,
+
+        self.show_password_var = tb.BooleanVar()
+        self.show_password_checkbox = tb.Checkbutton(self.algorithm_window,
                                                      text='Passwort im Klartext anzeigen',
                                                      variable=self.show_password_var,
                                                      command=self.toggle_password_visibility)
         self.show_password_checkbox.pack(pady=10)
 
         # Button zur Bestätigung
-        tk.Button(self.algorithm_window, text='Bestätigen', command=lambda: self.process_file_action(action)).pack(
+        tb.Button(self.algorithm_window, text='Bestätigen', command=lambda: self.process_file_action(action)).pack(
             pady=10)
 
     def toggle_password_visibility(self):

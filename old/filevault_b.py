@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from encryption import Encryption
+from encryption_old import Encryption
 from authentication import Authentication
 from PIL import Image, ImageTk
 
@@ -19,7 +19,7 @@ class FileVault(tk.Tk,Encryption,Authentication):
 		self.qr_window = None  # Attribut für das QR-Code-Fenster
 
 		# Lade das Hintergrundbild und speichere das Originalbild als PIL.Image.Image
-		br_image_path = "assets/back_locked.jpg"
+		br_image_path = "../assets/back_locked.jpg"
 		self.original_image = Image.open(br_image_path)
 
 		# Erstelle ein initiales ImageTk.PhotoImage für das Label
