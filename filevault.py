@@ -5,6 +5,15 @@ from ttkbootstrap import SUCCESS, DANGER
 from old.encryption_old import Encryption
 from authentication import Authentication
 from PIL import Image, ImageTk
+import logging
+
+logging.basicConfig(
+    level="INFO",
+    format="%(asctime)s %(message)s",
+    datefmt="%d-%m-%Y %H:%M:%S",
+    filename="encryption.log"
+)
+
 
 
 
@@ -204,10 +213,12 @@ class FileVault:
             encrypted_file_path = self.encryption.encrypt_file(self.selected_file, password, algorithm)
             if encrypted_file_path:
                 messagebox.showinfo('Erfolg', f'Datei erfolgreich verschlüsselt: {encrypted_file_path}')
+                logging.info(f'Datei erfolgreich verschluesselt: {encrypted_file_path}')
         else:
             decrypted_file_path = self.encryption.decrypt_file(self.selected_file, password, algorithm)
             if decrypted_file_path:
                 messagebox.showinfo('Erfolg', f'Datei erfolgreich entschlüsselt: {decrypted_file_path}')
+                logging.info(f'Datei erfolgreich entschluesselt: {decrypted_file_path}')
 
         self.algorithm_window.destroy()  # Schließt das Auswahlfenster
 
