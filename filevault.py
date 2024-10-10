@@ -7,6 +7,7 @@ from authentication import Authentication
 from PIL import Image, ImageTk
 
 
+
 class FileVault:
     def __init__(self, root):
         self.root = root
@@ -16,7 +17,9 @@ class FileVault:
         self.authentication = Authentication(self.root, self)
         self.code_window = None  # Attribut für das 2FA-Fenster
         self.qr_window = None  # Attribut für das QR-Code-Fenster
-        self.style = tb.Style('cyborg')#
+        self.style = tb.Style('cyborg')# Theme von TTKBootstrap
+
+
         # Lade das Hintergrundbild und speichere das Originalbild als PIL.Image.Image
         br_image_path = "assets/back_locked.jpg"
         self.original_image = Image.open(br_image_path)
