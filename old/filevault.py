@@ -5,6 +5,8 @@ from authentication import Authentication
 from PIL import Image, ImageTk
 
 
+
+
 class FileVault:
     def __init__(self, root):
         self.root = root
@@ -15,26 +17,12 @@ class FileVault:
         self.code_window = None  # Attribut für das 2FA-Fenster
         self.qr_window = None  # Attribut für das QR-Code-Fenster
 
-        # Lade das Hintergrundbild und speichere das Originalbild als PIL.Image.Image
-        br_image_path = "assets/back_locked.jpg"
-        self.original_image = Image.open(br_image_path)
-
-        # Erstelle ein initiales ImageTk.PhotoImage für das Label
-        self.br_image = ImageTk.PhotoImage(self.original_image)
-
-        # Erstellen eines Labels, um das Bild im Fenster laden zu können
-        self.br_label = tk.Label(root, image=self.br_image)
-        self.br_label.place(relwidth=1, relheight=1)
-        # Binden des <Configure>-Events, um die aktuelle Fenstergröße zu erhalten
-        self.root.bind('<Configure>', self.on_resize)
-
         # Hauptmenü-Buttons
         self.login_button = tk.Button(root, text='Login', command=self.open_login_dialog)
-        self.login_button.pack(pady=10, anchor ='center')
-
+        self.login_button.pack(pady=10)
 
         self.register_button = tk.Button(root, text='Registrieren', command=self.open_register_dialog)
-        self.register_button.pack(pady=10, anchor='center')
+        self.register_button.pack(pady=10)
 
         # Die Buttons für Verschlüsseln, Entschlüsseln und Logout, standardmäßig versteckt
         self.encrypt_button = tk.Button(root, text='Verschlüsseln', state='disabled',
@@ -47,31 +35,17 @@ class FileVault:
         self.status_label = tk.Label(root, text='')
         self.status_label.pack(pady=10)
 
-    def on_resize(self, event):
-        # Erhalten der neuen Fenstergröße
-        new_width = event.width
-        new_height = event.height
-
-        # Skalieren des Originalbildes (PIL.Image.Image) auf die neue Fenstergröße
-        scaled_image = self.original_image.resize((new_width, new_height), Image.LANCZOS)
-
-        # Umwandeln des skalierten Bildes in ein ImageTk.PhotoImage für Tkinter
-        self.br_image = ImageTk.PhotoImage(scaled_image)
-
-        # Aktualisieren des Bildes im Label
-        self.br_label.config(image=self.br_image)
-        self.br_label.image = self.br_image  # Referenz sichern
-
     def open_login_dialog(self):
-        # Öffnet das Login-Fenster.
+        #Öffnet das Login-Fenster.
         self.authentication.open_login_dialog(self.root, self.on_login_success)
-        self.authentication.login_window.bind('<Return>',lambda event: self.authentication.login(self.on_login_success))
+        self.authentication.login_window.bind('<Return>',
+                                              lambda event: self.authentication.login(self.on_login_success))
 
         # Setze den Fokus auf das Benutzernamensfeld
         self.authentication.username_entry.focus_set()
 
     def open_register_dialog(self):
-        # Öffnet das Registrierungsfenster.
+        #Öffnet das Registrierungsfenster.
         self.authentication.open_register_dialog(self.root, self.on_register_success)
         self.authentication.register_window.bind('<Return>',
                                                  lambda event: self.authentication.register(self.on_register_success))
@@ -80,18 +54,18 @@ class FileVault:
         self.authentication.register_username_entry.focus_set()
 
     def on_register_success(self, username):
-        # Wird aufgerufen, wenn die Registrierung erfolgreich ist und der Authenticator verknüpft wird.
+        #Wird aufgerufen, wenn die Registrierung erfolgreich ist und der Authenticator verknüpft wird.
         secret = self.authentication.link_authenticator(username)  # Verknüpft den Authenticator
         self.authentication.show_authenticator_qr(secret)  # QR-Code anzeigen
 
     def on_qr_window_close(self):
-        # Aktion beim Schließen des QR-Code-Fensters.
+        #Aktion beim Schließen des QR-Code-Fensters.
         if hasattr(self, 'qr_window') and self.qr_window is not None:
             self.qr_window.destroy()
             self.qr_window = None  # Setze das QR-Fenster zurück
 
     def on_login_success(self):
-        # Wird aufgerufen, wenn die Anmeldung erfolgreich ist.
+        #Wird aufgerufen, wenn die Anmeldung erfolgreich ist.
         print('Anmeldung erfolgreich')  # Debug-Ausgabe
         if self.authentication.is_2fa_linked(self.authentication.current_username):
             self.authentication.prompt_for_2fa_code(self.verify_2fa_code)  # Rufe die Methode von Authentication auf
@@ -99,14 +73,14 @@ class FileVault:
             self.prompt_to_link_authenticator()  # Fordert den Benutzer auf, den Authenticator zu verknüpfen
 
     def prompt_to_link_authenticator(self):
-        # Fragt den Benutzer, ob er einen Authenticator verknüpfen möchte.
+        #Fragt den Benutzer, ob er einen Authenticator verknüpfen möchte.
         if messagebox.askyesno('2FA Verknüpfung',
-                               'Ihr Konto ist nicht mit einem Authenticator verknüpft. Möchten Sie jetzt einen Authenticator verknüpfen?'):
+                                'Ihr Konto ist nicht mit einem Authenticator verknüpft. Möchten Sie jetzt einen Authenticator verknüpfen?'):
             secret = self.authentication.link_authenticator(self.authentication.current_username)
             self.show_authenticator_qr(secret)  # QR-Code anzeigen
 
     def verify_2fa_code(self, code):
-        # Überprüft den eingegebenen 2FA-Code.
+        #Überprüft den eingegebenen 2FA-Code.
         if self.authentication.verify_2fa_code(code):
             print('2FA-Code korrekt')  # Debug-Ausgabe
             self.authentication.code_window.destroy()  # Schließt das Fenster
@@ -117,7 +91,7 @@ class FileVault:
             messagebox.showerror('Fehler', 'Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.')
 
     def enable_main_menu(self):
-        # Aktiviert die Buttons nach erfolgreicher Anmeldung und Verifizierung.
+        #Aktiviert die Buttons nach erfolgreicher Anmeldung und Verifizierung.
         self.login_button.pack_forget()  # Versteckt den Login-Button
         self.register_button.pack_forget()  # Versteckt den Registrieren-Button
 
@@ -138,7 +112,7 @@ class FileVault:
         print('Entschlüsseln-Button Status:', self.decrypt_button.winfo_ismapped())
 
     def logout(self):
-        # Behandelt die Logout-Logik.
+        #Behandelt die Logout-Logik.
         self.authentication.current_username = None  # Setzt den aktuellen Benutzernamen zurück
         self.login_button.pack(pady=10)  # Zeigt den Login-Button wieder an
         self.register_button.pack(pady=10)  # Zeigt den Registrieren-Button wieder an
@@ -148,7 +122,7 @@ class FileVault:
         self.status_label.config(text='')  # Leert den Benutzerstatus
 
     def process_file(self, action):
-        # Verarbeitet die Datei (Verschlüsseln oder Entschlüsseln) basierend auf der Auswahl.
+        #Verarbeitet die Datei (Verschlüsseln oder Entschlüsseln) basierend auf der Auswahl.
         self.selected_file = filedialog.askopenfilename()
         if not self.selected_file:
             return
@@ -180,18 +154,17 @@ class FileVault:
         self.show_password_checkbox.pack(pady=10)
 
         # Button zur Bestätigung
-        tk.Button(self.algorithm_window, text='Bestätigen', command=lambda: self.process_file_action(action)).pack(
-            pady=10)
+        tk.Button(self.algorithm_window, text='Bestätigen', command=lambda: self.process_file_action(action)).pack(pady=10)
 
     def toggle_password_visibility(self):
-        # Wechselt zwischen Passwort anzeigen und verstecken.
+        #Wechselt zwischen Passwort anzeigen und verstecken.
         if self.show_password_var.get():
             self.password_entry.config(show='')  # Klartext anzeigen
         else:
             self.password_entry.config(show='*')  # Passwort verstecken
 
     def process_file_action(self, action):
-        # Verarbeitet die Datei basierend auf der Auswahl (Verschlüsseln oder Entschlüsseln).
+        #Verarbeitet die Datei basierend auf der Auswahl (Verschlüsseln oder Entschlüsseln).
         password = self.password_entry.get()
         algorithm = self.algorithm_var.get()
 

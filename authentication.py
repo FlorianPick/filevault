@@ -32,9 +32,15 @@ class Authentication:
         self.qr_window = None  # Setze das QR-Fenster zurück
 
     def open_login_dialog(self, root, on_success):
+
+
+
+
         """Öffnet das Login-Fenster."""
         self.login_window = Toplevel(root)
         self.login_window.title("Login")
+        self.login_window.geometry('800x500')
+
 
         Label(self.login_window, text="Benutzername:").pack(pady=5)
         self.username_entry = Entry(self.login_window)
