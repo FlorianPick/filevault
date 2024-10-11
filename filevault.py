@@ -2,7 +2,7 @@ import tkinter as tk
 import ttkbootstrap as tb
 from tkinter import filedialog, messagebox
 from ttkbootstrap import SUCCESS, DANGER
-from old.encryption_old import Encryption
+from encryption import Encryption
 from authentication import Authentication
 from PIL import Image, ImageTk
 import logging
@@ -26,7 +26,7 @@ class FileVault:
         self.authentication = Authentication(self.root, self)
         self.code_window = None  # Attribut für das 2FA-Fenster
         self.qr_window = None  # Attribut für das QR-Code-Fenster
-        self.style = tb.Style('cyborg')# Theme von TTKBootstrap
+        self.style = tb.Style('flatly')# Theme von TTKBootstrap Themes zum testen --> (flatly, journal,cyborg)
 
 
         # Lade das Hintergrundbild und speichere das Originalbild als PIL.Image.Image
@@ -37,7 +37,7 @@ class FileVault:
         self.br_image = ImageTk.PhotoImage(self.original_image)
 
         # Erstellen eines Labels, um das Bild im Fenster laden zu können
-        self.br_label = tk.Label(root, image=self.br_image)
+        self.br_label = tk.Label(root, image = self.br_image)
         self.br_label.place(relwidth=1, relheight=1)
         # Binden des <Configure>-Events, um die aktuelle Fenstergröße zu erhalten
         self.root.bind('<Configure>', self.on_resize)
